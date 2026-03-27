@@ -1,0 +1,88 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+:root {
+  /* Backgrounds - aged wood */
+  --bg-primary: #2c1e10;
+  --bg-secondary: #3a2a18;
+  --bg-tertiary: #4a3520;
+  --bg-card: #f5e6c8;
+  --bg-parchment: #ede0c8;
+  --bg-parchment-dark: #d4c4a0;
+
+  /* Borders */
+  --border: #8b7355;
+  --border-highlight: #c4a265;
+  --border-dark: #5a4a30;
+
+  /* Text */
+  --text-primary: #2c1a0e;
+  --text-secondary: #5a4a30;
+  --text-muted: #8b7a60;
+  --text-on-dark: #e8d5b5;
+  --text-on-dark-muted: #a8956e;
+
+  /* Card type colors - San Juan original */
+  --color-indigo: #3b5ea8;
+  --color-sugar: #e8dcc8;
+  --color-tobacco: #c8a050;
+  --color-coffee: #7a4a2a;
+  --color-silver: #9aa4b0;
+  --color-violet: #7b4b9e;
+
+  /* Accents */
+  --color-gold: #c4952a;
+  --color-gold-bright: #d4a83a;
+  --color-crimson: #8b2020;
+  --color-green: #3a6830;
+  --color-blue: #2a5a80;
+  --color-red: #8b2020;
+
+  /* Decorative */
+  --shadow-warm: rgba(44, 30, 16, 0.4);
+  --shadow-gold: rgba(196, 149, 42, 0.3);
+
+  /* Card sizes */
+  --card-w: 96px;
+  --card-h: 140px;
+  --card-w-sm: 66px;
+  --card-h-sm: 96px;
+  --card-w-xs: 48px;
+  --card-h-xs: 70px;
+  --card-radius: 5px;
+
+  --gap: 8px;
+  --gap-lg: 16px;
+
+  font-size: 16px;
+  font-family: 'Noto Serif JP', 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+  color: var(--text-on-dark);
+  background-color: var(--bg-primary);
+}
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+  border: none;
+  outline: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
