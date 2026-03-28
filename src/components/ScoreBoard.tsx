@@ -1,4 +1,7 @@
 import { GameState } from '../game/types';
+import { useLanguage, interpolate } from '../i18n';
+
+const BASE = import.meta.env.BASE_URL;
 
 interface ScoreBoardProps {
   state: GameState;
@@ -6,6 +9,8 @@ interface ScoreBoardProps {
 }
 
 export function ScoreBoard({ state, onRestart }: ScoreBoardProps) {
+  const { t } = useLanguage();
+
   if (!state.finalScores) return null;
 
   const sorted = [...state.finalScores].sort(
@@ -14,23 +19,23 @@ export function ScoreBoard({ state, onRestart }: ScoreBoardProps) {
   const winnerId = sorted[0].playerId;
 
   return (
-    <div className="score-board">
-      <h2>ゲーム終了</h2>
+    <div className="score-board" style={{ backgroundImage: `linear-gradient(rgba(26,26,46,0.5), rgba(26,26,46,0.75)), url('${BASE}images/ending.jpg')` }}>
+      <h2>{t('score.title')}</h2>
       <p style={{ color: 'var(--color-gold)', fontSize: '1.2rem' }}>
-        {state.players[winnerId].name} の勝利！
+        {interpolate(t('score.winner'), { name: state.players[winnerId].name })}
       </p>
 
       <table className="score-table">
         <thead>
           <tr>
-            <th>プレイヤー</th>
-            <th>建物VP</th>
-            <th>礼拝堂</th>
-            <th>記念碑</th>
-            <th>ギルド</th>
-            <th>市役所</th>
-            <th>宮殿</th>
-            <th>合計</th>
+            <th>{t('score.player')}</th>
+            <th>{t('score.buildingVP')}</th>
+            <th>{t('score.chapel')}</th>
+            <th>{t('score.monument')}</th>
+            <th>{t('score.guild')}</th>
+            <th>{t('score.cityHall')}</th>
+            <th>{t('score.palace')}</th>
+            <th>{t('score.total')}</th>
           </tr>
         </thead>
         <tbody>
@@ -53,7 +58,7 @@ export function ScoreBoard({ state, onRestart }: ScoreBoardProps) {
         </tbody>
       </table>
 
-      <button onClick={onRestart}>もう一度プレイ</button>
+      <button onClick={onRestart}>{t('score.restart')}</button>
     </div>
   );
 }

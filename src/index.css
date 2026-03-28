@@ -8,45 +8,45 @@
 }
 
 :root {
-  /* Backgrounds - aged wood */
-  --bg-primary: #2c1e10;
-  --bg-secondary: #3a2a18;
-  --bg-tertiary: #4a3520;
-  --bg-card: #f5e6c8;
-  --bg-parchment: #ede0c8;
-  --bg-parchment-dark: #d4c4a0;
+  /* Backgrounds - dark forest / witch's workshop */
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #24243e;
+  --bg-tertiary: #2e2e4a;
+  --bg-card: #f0e8d8;
+  --bg-parchment: #e8dcc8;
+  --bg-parchment-dark: #d0c0a0;
 
   /* Borders */
-  --border: #8b7355;
-  --border-highlight: #c4a265;
-  --border-dark: #5a4a30;
+  --border: #6a5a80;
+  --border-highlight: #a080c0;
+  --border-dark: #3a3050;
 
   /* Text */
-  --text-primary: #2c1a0e;
-  --text-secondary: #5a4a30;
-  --text-muted: #8b7a60;
-  --text-on-dark: #e8d5b5;
-  --text-on-dark-muted: #a8956e;
+  --text-primary: #2a1a2e;
+  --text-secondary: #5a4a60;
+  --text-muted: #8a7a90;
+  --text-on-dark: #e0d0f0;
+  --text-on-dark-muted: #a090b0;
 
-  /* Card type colors - San Juan original */
-  --color-indigo: #3b5ea8;
-  --color-sugar: #e8dcc8;
+  /* Card type colors - Witch's Atelier */
+  --color-indigo: #3a8a4a;
+  --color-sugar: #c8b898;
   --color-tobacco: #c8a050;
-  --color-coffee: #7a4a2a;
-  --color-silver: #9aa4b0;
+  --color-coffee: #7a4a9a;
+  --color-silver: #6080c0;
   --color-violet: #7b4b9e;
 
   /* Accents */
-  --color-gold: #c4952a;
-  --color-gold-bright: #d4a83a;
-  --color-crimson: #8b2020;
+  --color-gold: #b080e0;
+  --color-gold-bright: #c898f0;
+  --color-crimson: #6a2080;
   --color-green: #3a6830;
-  --color-blue: #2a5a80;
+  --color-blue: #4060a0;
   --color-red: #8b2020;
 
   /* Decorative */
-  --shadow-warm: rgba(44, 30, 16, 0.4);
-  --shadow-gold: rgba(196, 149, 42, 0.3);
+  --shadow-warm: rgba(26, 26, 46, 0.4);
+  --shadow-gold: rgba(176, 128, 224, 0.3);
 
   /* Card sizes */
   --card-w: 96px;

@@ -31,7 +31,7 @@ describe('gameReducer', () => {
   describe('START_GAME', () => {
     it('transitions from title to role_selection', () => {
       const state = createInitialState();
-      const result = gameReducer(state, { type: 'START_GAME' });
+      const result = gameReducer(state, { type: 'START_GAME', language: 'ja' });
       expect(result.phase).toBe('role_selection');
     });
   });
@@ -39,16 +39,33 @@ describe('gameReducer', () => {
   describe('RESTART_GAME', () => {
     it('creates a fresh game state', () => {
       const state = createInitialState();
-      const started = gameReducer(state, { type: 'START_GAME' });
+      const started = gameReducer(state, { type: 'START_GAME', language: 'ja' });
       const restarted = gameReducer(started, { type: 'RESTART_GAME' });
       expect(restarted.phase).toBe('role_selection');
       expect(restarted.log).toContain('ゲーム開始！');
     });
   });
 
+  describe('English logs', () => {
+    it('produces English logs when language is en', () => {
+      const state = createInitialState();
+      const started = gameReducer(state, { type: 'START_GAME', language: 'en' });
+      expect(started.log).toContain('Game start!');
+      const selected = gameReducer(started, { type: 'SELECT_ROLE', role: 'builder' });
+      expect(selected.log.some((l) => l.includes('chose Crafting'))).toBe(true);
+    });
+
+    it('produces English skip log', () => {
+      let state = gameReducer(createInitialState(), { type: 'START_GAME', language: 'en' });
+      state = gameReducer(state, { type: 'SELECT_ROLE', role: 'trader' });
+      const result = gameReducer(state, { type: 'SKIP_TRADE' });
+      expect(result.log.some((l) => l.includes('passed on selling'))).toBe(true);
+    });
+  });
+
   describe('SELECT_ROLE', () => {
     it('transitions to the appropriate phase', () => {
-      const state = gameReducer(createInitialState(), { type: 'START_GAME' });
+      const state = gameReducer(createInitialState(), { type: 'START_GAME', language: 'ja' });
       const result = gameReducer(state, { type: 'SELECT_ROLE', role: 'builder' });
       expect(result.phase).toBe('builder_phase');
       expect(result.currentRole).toBe('builder');
@@ -57,7 +74,7 @@ describe('gameReducer', () => {
 
   describe('SKIP_BUILD', () => {
     it('marks player completed and advances', () => {
-      let state = gameReducer(createInitialState(), { type: 'START_GAME' });
+      let state = gameReducer(createInitialState(), { type: 'START_GAME', language: 'ja' });
       state = gameReducer(state, { type: 'SELECT_ROLE', role: 'builder' });
       const beforeIdx = state.executingPlayerIndex;
       const result = gameReducer(state, { type: 'SKIP_BUILD' });
@@ -68,7 +85,7 @@ describe('gameReducer', () => {
 
   describe('SKIP_TRADE', () => {
     it('adds skip log message', () => {
-      let state = gameReducer(createInitialState(), { type: 'START_GAME' });
+      let state = gameReducer(createInitialState(), { type: 'START_GAME', language: 'ja' });
       state = gameReducer(state, { type: 'SELECT_ROLE', role: 'trader' });
       const result = gameReducer(state, { type: 'SKIP_TRADE' });
       expect(result.log.some((l) => l.includes('パス'))).toBe(true);
@@ -77,7 +94,7 @@ describe('gameReducer', () => {
 
   describe('USE_CHAPEL', () => {
     it('stores card and advances chapel phase', () => {
-      let state = gameReducer(createInitialState(), { type: 'START_GAME' });
+      let state = gameReducer(createInitialState(), { type: 'START_GAME', language: 'ja' });
       // Manually set up chapel phase state
       const cardToTuck = makeCard('sugar_mill', 9999);
       state = {
@@ -112,7 +129,7 @@ describe('gameReducer', () => {
 
   describe('SKIP_CHAPEL', () => {
     it('advances chapel phase without storing', () => {
-      let state = gameReducer(createInitialState(), { type: 'START_GAME' });
+      let state = gameReducer(createInitialState(), { type: 'START_GAME', language: 'ja' });
       state = {
         ...state,
         phase: 'chapel_phase',
@@ -151,7 +168,7 @@ describe('gameReducer', () => {
 
   describe('DISCARD_EXCESS', () => {
     it('discards selected cards and advances', () => {
-      let state = gameReducer(createInitialState(), { type: 'START_GAME' });
+      let state = gameReducer(createInitialState(), { type: 'START_GAME', language: 'ja' });
       // Set up a state where human has too many cards after trade
       const hand = Array.from({ length: 9 }, (_, i) => makeCard('indigo_plant', 7000 + i));
       state = {
@@ -175,7 +192,7 @@ describe('gameReducer', () => {
 
   describe('ARCHIVE_DISCARD', () => {
     it('discards selected cards after councillor', () => {
-      let state = gameReducer(createInitialState(), { type: 'START_GAME' });
+      let state = gameReducer(createInitialState(), { type: 'START_GAME', language: 'ja' });
       const hand = Array.from({ length: 5 }, (_, i) => makeCard('indigo_plant', 8000 + i));
       state = {
         ...state,
@@ -200,7 +217,7 @@ describe('gameReducer', () => {
 
   describe('SKIP_ARCHIVE', () => {
     it('advances without discarding', () => {
-      let state = gameReducer(createInitialState(), { type: 'START_GAME' });
+      let state = gameReducer(createInitialState(), { type: 'START_GAME', language: 'ja' });
       const hand = Array.from({ length: 5 }, (_, i) => makeCard('indigo_plant', 8000 + i));
       state = {
         ...state,
@@ -222,7 +239,7 @@ describe('gameReducer', () => {
 
   describe('COUNCILLOR_KEEP with archive', () => {
     it('transitions to archive_select for human with archive', () => {
-      let state = gameReducer(createInitialState(), { type: 'START_GAME' });
+      let state = gameReducer(createInitialState(), { type: 'START_GAME', language: 'ja' });
       const drawnCards = [makeCard('chapel', 9000), makeCard('smithy', 9001)];
       state = {
         ...state,
@@ -247,7 +264,7 @@ describe('gameReducer', () => {
 
   describe('BUILD with hand limit', () => {
     it('transitions to discard_excess when human exceeds hand limit after build', () => {
-      let state = gameReducer(createInitialState(), { type: 'START_GAME' });
+      let state = gameReducer(createInitialState(), { type: 'START_GAME', language: 'ja' });
       // Player has 8 cards (will have 6 after paying 1 for cost 0 building, then carpenter draws)
       // Actually, let's set up: build cost 0 card, have carpenter → draw 1 → still have many cards
       // Simpler: have a lot of cards, build a card that costs 0 (with builder privilege)

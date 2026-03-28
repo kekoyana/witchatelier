@@ -1,3 +1,5 @@
+export type Language = 'ja' | 'en';
+
 export type BuildingType = 'production' | 'violet';
 
 export type GoodType = 'indigo' | 'sugar' | 'tobacco' | 'coffee' | 'silver';
@@ -95,24 +97,25 @@ export interface GameState {
   gameEndTriggered: boolean;
   currentTradingTile: TradingTile | null;
 
+  language: Language;
   log: string[];
   finalScores: { playerId: number; breakdown: ScoreBreakdown }[] | null;
 }
 
-export const ROLE_NAMES: Record<RoleType, string> = {
-  builder: '建築士',
-  producer: '監督',
-  trader: '商人',
-  councillor: '参事会員',
-  prospector: '金鉱掘り',
+export const ROLE_NAMES: Record<RoleType, Record<Language, string>> = {
+  builder: { ja: '調合', en: 'Crafting' },
+  producer: { ja: '採集', en: 'Gathering' },
+  trader: { ja: '行商', en: 'Peddling' },
+  councillor: { ja: '占い', en: 'Divining' },
+  prospector: { ja: '探索', en: 'Exploring' },
 };
 
-export const GOOD_NAMES: Record<GoodType, string> = {
-  indigo: 'インディゴ',
-  sugar: '砂糖',
-  tobacco: 'タバコ',
-  coffee: 'コーヒー',
-  silver: '銀',
+export const GOOD_NAMES: Record<GoodType, Record<Language, string>> = {
+  indigo: { ja: 'ハーブ', en: 'Herb' },
+  sugar: { ja: 'キノコ', en: 'Mushroom' },
+  tobacco: { ja: '蜜蝋', en: 'Beeswax' },
+  coffee: { ja: '結晶', en: 'Crystal' },
+  silver: { ja: '月光石', en: 'Moonstone' },
 };
 
 export type TradingTile = Record<GoodType, number>;

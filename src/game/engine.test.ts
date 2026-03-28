@@ -75,6 +75,7 @@ function makeGameState(overrides: Partial<GameState> = {}): GameState {
     chapelUsedThisRound: [false, false, false, false],
     gameEndTriggered: false,
     currentTradingTile: null,
+    language: 'ja',
     log: [],
     finalScores: null,
     ...overrides,
@@ -734,7 +735,7 @@ describe('executeProspector', () => {
     const result = executeProspector(state, 0);
     // 金鉱掘りの1枚 + 金鉱の1枚 = 2枚
     expect(result.players[0].hand.length).toBe(2);
-    expect(result.log.some(l => l.includes('金鉱で'))).toBe(true);
+    expect(result.log.some(l => l.includes('精霊の導きで'))).toBe(true);
   });
 
   it('goldmine triggers during prospector: no gain when costs overlap', () => {

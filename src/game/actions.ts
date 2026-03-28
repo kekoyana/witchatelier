@@ -1,7 +1,7 @@
-import { RoleType, GoodType } from './types';
+import { RoleType, GoodType, Language } from './types';
 
 export type GameAction =
-  | { type: 'START_GAME' }
+  | { type: 'START_GAME'; language: Language }
   | { type: 'RESTART_GAME' }
   | { type: 'SELECT_ROLE'; role: RoleType }
   | { type: 'BUILD'; cardInstanceId: number; paymentCardIds: number[]; craneTargetIndex?: number; blackMarketGoods?: GoodType[] }

@@ -1,6 +1,8 @@
 import React, { useReducer, useEffect, useRef } from 'react';
 import './App.css';
-import { GameState, RoleType, GoodType, TradingTile, ROLE_NAMES, GOOD_NAMES } from './game/types';
+
+const BASE = import.meta.env.BASE_URL;
+import { GameState, RoleType, GoodType, TradingTile } from './game/types';
 import { GameAction } from './game/actions';
 import { gameReducer, createInitialState } from './game/reducer';
 import {
@@ -25,9 +27,17 @@ import {
 import { getCardDef } from './game/utils';
 import { CardView } from './components/CardView';
 import { ScoreBoard } from './components/ScoreBoard';
+import {
+  useLanguage,
+  interpolate,
+  getRoleName,
+  getGoodName,
+  getCardDisplayName,
+} from './i18n';
 
 function App() {
-  const [state, dispatch] = useReducer(gameReducer, null, createInitialState);
+  const { language, setLanguage, t } = useLanguage();
+  const [state, dispatch] = useReducer(gameReducer, language, createInitialState);
 
   const timerRef = useRef<number | null>(null);
 
@@ -37,7 +47,6 @@ function App() {
 
     const isRoleSelection = state.phase === 'role_selection';
 
-    // 役職選択フェーズでAIの番
     if (isRoleSelection) {
       const selector = state.players[state.currentRoleSelector];
       if (!selector.isHuman) {
@@ -50,7 +59,6 @@ function App() {
       return;
     }
 
-    // 礼拝堂フェーズ
     if (state.phase === 'chapel_phase') {
       const chapelPlayer = state.players[state.executingPlayerIndex];
       if (!chapelPlayer.isHuman) {
@@ -67,7 +75,6 @@ function App() {
       return;
     }
 
-    // 役職実行フェーズでAIの番
     const currentPlayer = state.players[state.executingPlayerIndex];
     if (!currentPlayer.isHuman && state.currentRole) {
       timerRef.current = window.setTimeout(() => {
@@ -79,86 +86,107 @@ function App() {
 
   const [showRules, setShowRules] = React.useState(false);
 
+  // Language toggle component
+  const LanguageToggle = ({ className }: { className?: string }) => (
+    <button
+      className={`lang-toggle ${className ?? ''}`}
+      onClick={() => setLanguage(language === 'ja' ? 'en' : 'ja')}
+    >
+      {language === 'ja' ? 'EN' : 'JP'}
+    </button>
+  );
+
   if (state.phase === 'title') {
     return (
-      <div className={`title-screen${showRules ? ' title-screen--rules-open' : ''}`}>
+      <div className="title-screen" style={{ backgroundImage: `radial-gradient(ellipse at center, rgba(26,26,46,0.4) 0%, rgba(26,26,46,0.85) 100%), url('${BASE}images/start.jpg')` }}>
         <div className="title-spacer" />
-        <h1>San Juan</h1>
-        <div className="title-divider" />
-        <p>サンファン - カードゲーム</p>
-        <button onClick={() => dispatch({ type: 'START_GAME' })}>
-          ゲーム開始
+        <LanguageToggle className="title-lang-toggle" />
+        <img src={`${BASE}images/title.jpg`} alt={t('title.name')} className="title-logo" />
+        <p>{t('title.subtitle')}</p>
+        <button onClick={() => dispatch({ type: 'START_GAME', language })}>
+          {t('title.start')}
         </button>
-        <button className="rules-toggle" onClick={() => setShowRules(!showRules)}>
-          {showRules ? '閉じる' : '遊び方'}
+        <button className="rules-toggle" onClick={() => setShowRules(true)}>
+          {t('title.rules')}
         </button>
+        <div className="title-spacer" />
         {showRules && (
-          <div className="rules-panel">
-            <h2>ゲームの概要</h2>
-            <p>
-              プエルトリコの首都サンファンを舞台に、建物を建設して街を発展させるカードゲームです。
-              あなた（1人）とAI（3人）の4人で対戦します。
-            </p>
+          <div className="rules-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowRules(false); }}>
+            <div className="rules-panel">
+              <button className="rules-close-x" onClick={() => setShowRules(false)}>&times;</button>
+              <h2>{t('rules.overview.title')}</h2>
+              <p>{t('rules.overview.text')}</p>
 
-            <h2>勝利条件</h2>
-            <p>
-              いずれかのプレイヤーが<strong>12棟</strong>の建物を建設するとゲーム終了。
-              建物の勝利点の合計が最も高いプレイヤーが勝利します。
-            </p>
+              <h2>{t('rules.victory.title')}</h2>
+              <p>{t('rules.victory.text')}</p>
 
-            <h2>カードの役割</h2>
-            <p>
-              カードは<strong>建物</strong>であると同時に<strong>通貨</strong>でもあります。
-              建物を建てるには、手札からカードを支払い（捨て）ます。
-            </p>
+              <h2>{t('rules.cards.title')}</h2>
+              <p>{t('rules.cards.text')}</p>
 
-            <h2>ゲームの流れ</h2>
-            <p>
-              各ラウンドでは、総督から順番に<strong>役職</strong>を1つ選びます。
-              選んだ役職のアクションは全員が実行しますが、選んだ人だけ特権（ボーナス）を得ます。
-            </p>
+              <h2>{t('rules.flow.title')}</h2>
+              <p>{t('rules.flow.text')}</p>
 
-            <h2>5つの役職</h2>
-            <div className="rules-roles">
-              <div className="rules-role">
-                <span className="rules-role-name">建築士</span>
-                <span>手札のカードを支払って建物を建設する。特権：コスト1減。</span>
+              <h2>{t('rules.roles.title')}</h2>
+              <div className="rules-roles">
+                <div className="rules-role">
+                  <span className="rules-role-name">{getRoleName('builder', language)}</span>
+                  <span>{t('role.builder.desc')}{language === 'ja' ? '。' : '.'} {language === 'ja' ? '特権' : 'Privilege'}: {t('role.builder.privilege')}</span>
+                </div>
+                <div className="rules-role">
+                  <span className="rules-role-name">{getRoleName('producer', language)}</span>
+                  <span>{t('role.producer.desc')}{language === 'ja' ? '。' : '.'} {language === 'ja' ? '特権' : 'Privilege'}: {t('role.producer.privilege')}</span>
+                </div>
+                <div className="rules-role">
+                  <span className="rules-role-name">{getRoleName('trader', language)}</span>
+                  <span>{t('role.trader.desc')}{language === 'ja' ? '。' : '.'} {language === 'ja' ? '特権' : 'Privilege'}: {t('role.trader.privilege')}</span>
+                </div>
+                <div className="rules-role">
+                  <span className="rules-role-name">{getRoleName('councillor', language)}</span>
+                  <span>{t('role.councillor.desc')}{language === 'ja' ? '。' : '.'} {language === 'ja' ? '特権' : 'Privilege'}: {t('role.councillor.privilege')}</span>
+                </div>
+                <div className="rules-role">
+                  <span className="rules-role-name">{getRoleName('prospector', language)}</span>
+                  <span>{t('role.prospector.desc')}</span>
+                </div>
               </div>
-              <div className="rules-role">
-                <span className="rules-role-name">監督</span>
-                <span>生産施設に商品を1つ生産する。特権：追加で1つ生産。</span>
+
+              <h2>{t('rules.buildings.title')}</h2>
+              <div className="rules-building-types">
+                <div className="rules-building-sample">
+                  <strong>{language === 'ja' ? '採集場' : 'Gathering Sites'}</strong>
+                  <p>{t('rules.buildings.production')}</p>
+                  <div className="rules-sample-cards">
+                    <CardView card={{ instanceId: -1, defId: 'indigo_plant' }} size="normal" />
+                    <CardView card={{ instanceId: -2, defId: 'coffee_roaster' }} size="normal" />
+                  </div>
+                  <p className="rules-circle-legend">
+                    <span className="rules-circle production-cost" />{language === 'ja' ? 'コスト' : 'Cost'}
+                    <span className="rules-circle production-vp" />{language === 'ja' ? '名声' : 'Fame'}
+                  </p>
+                </div>
+                <div className="rules-building-sample">
+                  <strong>{language === 'ja' ? '紫の設備' : 'Purple Facilities'}</strong>
+                  <p>{t('rules.buildings.violet')}</p>
+                  <div className="rules-sample-cards">
+                    <CardView card={{ instanceId: -3, defId: 'smithy' }} size="normal" />
+                    <CardView card={{ instanceId: -4, defId: 'chapel' }} size="normal" />
+                  </div>
+                  <p className="rules-circle-legend">
+                    <span className="rules-circle violet-cost" />{language === 'ja' ? 'コスト' : 'Cost'}
+                    <span className="rules-circle violet-vp" />{language === 'ja' ? '名声' : 'Fame'}
+                  </p>
+                </div>
               </div>
-              <div className="rules-role">
-                <span className="rules-role-name">商人</span>
-                <span>商品を売却してカードを引く。特権：追加で1つ売却。</span>
-              </div>
-              <div className="rules-role">
-                <span className="rules-role-name">参事会員</span>
-                <span>山札から5枚引いて1枚を選ぶ。特権：さらに多く選べる。</span>
-              </div>
-              <div className="rules-role">
-                <span className="rules-role-name">金鉱掘り</span>
-                <span>特権のみ：カードを1枚引く。他の人は何もできない。</span>
-              </div>
+
+              <h2>{t('rules.handlimit.title')}</h2>
+              <p>{t('rules.handlimit.text')}</p>
+
+              <button className="rules-close" onClick={() => setShowRules(false)}>
+                {t('title.close')}
+              </button>
             </div>
-
-            <h2>建物の種類</h2>
-            <div className="rules-building-types">
-              <p>
-                <strong>生産施設</strong>（コスト1〜3）：商品を生産・売却して収入を得る。
-                インディゴ、砂糖、タバコ、コーヒー、銀の5種類。
-              </p>
-              <p>
-                <strong>紫の建物</strong>（コスト1〜6）：特殊能力を持ち、ゲームを有利に進められる。
-                勝利点も高い。
-              </p>
-            </div>
-
-            <h2>手札上限</h2>
-            <p>手札の上限は<strong>7枚</strong>です（塔を建設すると12枚に増加）。</p>
           </div>
         )}
-        <div className="title-spacer" />
       </div>
     );
   }
@@ -177,28 +205,29 @@ function App() {
   const currentPlayer = state.players[state.executingPlayerIndex];
 
   return (
-    <div className="game-board">
+    <div className="game-board" style={{ backgroundImage: `linear-gradient(rgba(26,26,46,0.3), rgba(26,26,46,0.4)), url('${BASE}images/game.jpg')` }}>
       {/* Phase Indicator */}
       <div className="phase-indicator">
         {state.currentRole && (
-          <span key={`role-${state.currentRole}`} className="phase-tag">{ROLE_NAMES[state.currentRole]}</span>
+          <span key={`role-${state.currentRole}`} className="phase-tag">{getRoleName(state.currentRole, language)}</span>
         )}
         {state.phase === 'role_selection' && (
-          <span key="role-selection" className="phase-tag">役職選択</span>
+          <span key="role-selection" className="phase-tag">{t('phase.role_selection')}</span>
         )}
         {state.phase === 'chapel_phase' && (
-          <span key="chapel" className="phase-tag">礼拝堂</span>
+          <span key="chapel" className="phase-tag">{t('phase.chapel')}</span>
         )}
         <span className="governor-tag">
-          総督: {state.players[state.governorIndex].name}
+          {t('label.elder')}: {state.players[state.governorIndex].name}
         </span>
         <span>
-          手番: {state.phase === 'role_selection'
+          {t('label.turn')}: {state.phase === 'role_selection'
             ? state.players[state.currentRoleSelector].name
             : currentPlayer.name}
         </span>
+        <LanguageToggle />
         <span className="deck-info">
-          山札: {state.deck.length}
+          {t('label.deck')}: {state.deck.length}
         </span>
       </div>
 
@@ -218,7 +247,7 @@ function App() {
                       <span className="governor-badge">★</span>
                     )}
                     <span className="hand-count">
-                      手札{p.hand.length}
+                      {t('label.hand')}{p.hand.length}
                     </span>
                   </div>
                   <div className="opponent-buildings">
@@ -241,14 +270,14 @@ function App() {
               <div className="player-header">
                 <span className="name">{humanPlayer.name}</span>
                 {state.governorIndex === 0 && (
-                  <span className="governor-badge">★ 総督</span>
+                  <span className="governor-badge">★ {t('label.elder')}</span>
                 )}
                 <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                  建物: {humanPlayer.buildings.length}/12
+                  {t('label.facilities')}: {humanPlayer.buildings.length}/12
                 </span>
               </div>
 
-              <div className="player-buildings-label">建物</div>
+              <div className="player-buildings-label">{t('label.facilities')}</div>
               <div className="player-buildings">
                 {humanPlayer.buildings.map((b) => (
                   <CardView
@@ -261,7 +290,7 @@ function App() {
                 ))}
               </div>
 
-              <div className="player-hand-label">手札 ({humanPlayer.hand.length})</div>
+              <div className="player-hand-label">{t('label.hand')} ({humanPlayer.hand.length})</div>
               <div className="player-hand">
                 {humanPlayer.hand.map((c) => (
                   <CardView key={c.instanceId} card={c} size="normal" />
@@ -276,7 +305,7 @@ function App() {
 
         {/* Game Log */}
         <div className="game-log">
-          <h4>ログ</h4>
+          <h4>{t('label.log')}</h4>
           {[...state.log].reverse().map((entry, i) => (
             <div
               key={state.log.length - 1 - i}
@@ -340,8 +369,7 @@ function executeAIAction(
       break;
     }
     case 'prospector': {
-      // Prospector is auto-resolved in the reducer via advanceToNextPlayer
-      dispatch({ type: 'SKIP_BUILD' }); // Just advance
+      dispatch({ type: 'SKIP_BUILD' });
       break;
     }
   }
@@ -355,7 +383,8 @@ function ActionPanel({
   state: GameState;
   dispatch: React.Dispatch<GameAction>;
 }) {
-  // 礼拝堂フェーズ
+  const { t } = useLanguage();
+
   if (state.phase === 'chapel_phase') {
     const chapelPlayer = state.players[state.executingPlayerIndex];
     if (chapelPlayer.isHuman) {
@@ -364,13 +393,12 @@ function ActionPanel({
     return (
       <div className="action-panel">
         <div className="ai-thinking">
-          {chapelPlayer.name} が礼拝堂を使用中<span className="dots"></span>
+          {interpolate(t('ai.chapel'), { name: chapelPlayer.name })}<span className="dots"></span>
         </div>
       </div>
     );
   }
 
-  // 役職選択フェーズ
   if (state.phase === 'role_selection') {
     const selector = state.players[state.currentRoleSelector];
     if (selector.isHuman) {
@@ -379,13 +407,12 @@ function ActionPanel({
     return (
       <div className="action-panel">
         <div className="ai-thinking">
-          {selector.name} が役職を選択中<span className="dots"></span>
+          {interpolate(t('ai.selectRole'), { name: selector.name })}<span className="dots"></span>
         </div>
       </div>
     );
   }
 
-  // サブフェーズ: 手札上限超過
   if (state.subPhase === 'discard_excess') {
     const discardPlayer = state.players[state.executingPlayerIndex];
     if (discardPlayer.isHuman) {
@@ -393,7 +420,6 @@ function ActionPanel({
     }
   }
 
-  // サブフェーズ: 公文書館
   if (state.subPhase === 'archive_select') {
     const archivePlayer = state.players[state.executingPlayerIndex];
     if (archivePlayer.isHuman) {
@@ -404,18 +430,16 @@ function ActionPanel({
   const currentPlayer = state.players[state.executingPlayerIndex];
   const isHumanTurn = currentPlayer.isHuman;
 
-  // AI思考中
   if (!isHumanTurn) {
     return (
       <div className="action-panel">
         <div className="ai-thinking">
-          {currentPlayer.name} が考え中<span className="dots"></span>
+          {interpolate(t('ai.thinking'), { name: currentPlayer.name })}<span className="dots"></span>
         </div>
       </div>
     );
   }
 
-  // 各フェーズ (人間の番)
   switch (state.currentRole) {
     case 'builder':
       return <BuilderPanel state={state} dispatch={dispatch} />;
@@ -438,6 +462,7 @@ function RoleSelectionPanel({
   state: GameState;
   dispatch: React.Dispatch<GameAction>;
 }) {
+  const { language, t } = useLanguage();
   const [chosenRole, setChosenRole] = React.useState<RoleType | null>(null);
 
   const handleSelect = (role: RoleType) => {
@@ -448,19 +473,19 @@ function RoleSelectionPanel({
     }, 350);
   };
 
-  const roles: { role: RoleType; desc: string; privilege: string; icon: string; colorClass: string }[] = [
-    { role: 'builder', desc: '全員が建物を1つ建設可能', privilege: 'コスト-1', icon: '🏛️', colorClass: 'role-builder' },
-    { role: 'producer', desc: '全員が商品を生産', privilege: '追加1個生産', icon: '⚒️', colorClass: 'role-producer' },
-    { role: 'trader', desc: '全員が商品を1つ売却可能', privilege: '売却額+1', icon: '⚖️', colorClass: 'role-trader' },
-    { role: 'councillor', desc: '全員がカードを引いて選択', privilege: '5枚引いて1枚選択', icon: '📜', colorClass: 'role-councillor' },
-    { role: 'prospector', desc: '選択者のみ1枚ドロー', privilege: '1枚ドロー', icon: '⛏️', colorClass: 'role-prospector' },
+  const roles: { role: RoleType; descKey: string; privilegeKey: string; icon: string; colorClass: string }[] = [
+    { role: 'builder', descKey: 'role.builder.desc', privilegeKey: 'role.builder.privilege', icon: '🧪', colorClass: 'role-builder' },
+    { role: 'producer', descKey: 'role.producer.desc', privilegeKey: 'role.producer.privilege', icon: '🌿', colorClass: 'role-producer' },
+    { role: 'trader', descKey: 'role.trader.desc', privilegeKey: 'role.trader.privilege', icon: '🧳', colorClass: 'role-trader' },
+    { role: 'councillor', descKey: 'role.councillor.desc', privilegeKey: 'role.councillor.privilege', icon: '🔮', colorClass: 'role-councillor' },
+    { role: 'prospector', descKey: 'role.prospector.desc', privilegeKey: 'role.prospector.privilege', icon: '🦉', colorClass: 'role-prospector' },
   ];
 
   return (
     <div className="action-panel">
-      <h3>役職を選択してください</h3>
+      <h3>{t('action.selectRole')}</h3>
       <div className="role-card-row">
-        {roles.map(({ role, desc, privilege, icon, colorClass }) => {
+        {roles.map(({ role, descKey, privilegeKey, icon, colorClass }) => {
           const isUsed = state.usedRoles.includes(role);
           const isChosen = chosenRole === role;
           return (
@@ -471,9 +496,9 @@ function RoleSelectionPanel({
               onClick={() => handleSelect(role)}
             >
               <div className="role-card-icon">{icon}</div>
-              <div className="role-card-name">{ROLE_NAMES[role]}</div>
-              <div className="role-card-desc">{desc}</div>
-              <div className="role-card-privilege">{privilege}</div>
+              <div className="role-card-name">{getRoleName(role, language)}</div>
+              <div className="role-card-desc">{t(descKey)}</div>
+              <div className="role-card-privilege">{t(privilegeKey)}</div>
             </button>
           );
         })}
@@ -490,6 +515,7 @@ function BuilderPanel({
   state: GameState;
   dispatch: React.Dispatch<GameAction>;
 }) {
+  const { language, t } = useLanguage();
   const player = state.players[0];
   const hasCrane = hasBuilding(player.buildings, 'crane');
   const hasBlackMarket = hasBuilding(player.buildings, 'black_market');
@@ -510,9 +536,8 @@ function BuilderPanel({
     setSelectedPayment(new Set());
   };
 
-  // Step 1: 建設カード選択
+  // Step 1: Select card to build
   if (selectedBuild === null) {
-    // クレーン有無で建設可能カードを判定
     const buildableInfo = player.hand.map((c) => {
       const def = getCardDef(c);
       const normalBuild = canBuild(state, 0, c.instanceId);
@@ -530,9 +555,9 @@ function BuilderPanel({
 
     return (
       <div className="action-panel">
-        <h3>建築士 - 建設するカードを選択</h3>
+        <h3>{t('action.builder.select')}</h3>
         <p>
-          {state.roleChooser === 0 ? '特権: コスト-1' : ''}
+          {state.roleChooser === 0 ? t('action.builder.privilege') : ''}
         </p>
         <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', margin: '6px 0' }}>
           {buildableInfo.map(({ card: c, def, canBuildAny, craneBuild, normalBuild }) => {
@@ -548,7 +573,7 @@ function BuilderPanel({
                 />
                 {canBuildAny && (
                   <div className="card-label">
-                    {!normalBuild && craneBuild ? '建替' : `コスト:${cost}`}
+                    {!normalBuild && craneBuild ? t('action.builder.replace') : `${t('action.builder.cost')}:${cost}`}
                   </div>
                 )}
               </div>
@@ -557,7 +582,7 @@ function BuilderPanel({
         </div>
         <div className="action-buttons">
           <button className="skip" onClick={() => dispatch({ type: 'SKIP_BUILD' })}>
-            パス
+            {t('btn.pass')}
           </button>
         </div>
       </div>
@@ -566,8 +591,9 @@ function BuilderPanel({
 
   const buildCard = player.hand.find((c) => c.instanceId === selectedBuild)!;
   const buildDef = getCardDef(buildCard);
+  const buildName = getCardDisplayName(buildDef.id, language, buildDef.name);
 
-  // Step 2: クレーン対象選択
+  // Step 2: Crane target
   if (hasCrane && !craneDecided) {
     const normalOk = canBuild(state, 0, selectedBuild);
     const craneTargets: number[] = [];
@@ -577,14 +603,13 @@ function BuilderPanel({
       }
     }
 
-    // クレーン対象がない場合はスキップ
     if (craneTargets.length === 0) {
       setCraneDecided(true);
     } else {
       return (
         <div className="action-panel">
-          <h3>建築士 - {buildDef.name} の建て替え</h3>
-          <p>建て替える建物を選択するか、新規建設してください。</p>
+          <h3>{interpolate(t('action.builder.crane'), { name: buildName })}</h3>
+          <p>{t('action.builder.craneDesc')}</p>
           <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', margin: '6px 0' }}>
             {craneTargets.map((idx) => {
               const b = player.buildings[idx];
@@ -603,7 +628,7 @@ function BuilderPanel({
                     }}
                   />
                   <div className="card-label">
-                    差額:{craneCost}
+                    {t('action.builder.diff')}:{craneCost}
                   </div>
                 </div>
               );
@@ -615,12 +640,12 @@ function BuilderPanel({
                 setCraneTarget(undefined);
                 setCraneDecided(true);
               }}>
-                新規建設
+                {t('action.builder.newBuild')}
               </button>
             )}
-            <button onClick={resetAll}>戻る</button>
+            <button onClick={resetAll}>{t('btn.back')}</button>
             <button className="skip" onClick={() => { resetAll(); dispatch({ type: 'SKIP_BUILD' }); }}>
-              パス
+              {t('btn.pass')}
             </button>
           </div>
         </div>
@@ -633,7 +658,7 @@ function BuilderPanel({
     : undefined;
   const baseCost = getBuildCost(state, 0, buildDef.id, craneTargetDefId);
 
-  // Step 3: 闇市場 - 商品選択
+  // Step 3: Black market goods
   if (hasBlackMarket && !goodsDecided) {
     const goodBuildings = player.buildings
       .map((b, i) => ({ building: b, index: i }))
@@ -653,8 +678,8 @@ function BuilderPanel({
 
       return (
         <div className="action-panel">
-          <h3>闇市場 - {buildDef.name} (コスト: {baseCost})</h3>
-          <p>支払いに使う商品を選択 (最大{maxGoods}個)。使わない場合はスキップ。</p>
+          <h3>{interpolate(t('action.blackmarket.title'), { name: buildName, cost: String(baseCost) })}</h3>
+          <p>{interpolate(t('action.blackmarket.desc'), { max: String(maxGoods) })}</p>
           <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', margin: '6px 0' }}>
             {goodBuildings.map(({ building: b, index: idx }) => (
               <div key={b.card.instanceId} className="card-with-label">
@@ -668,7 +693,7 @@ function BuilderPanel({
                 />
                 {b.good && (
                   <div className="card-label">
-                    {GOOD_NAMES[b.good]}
+                    {getGoodName(b.good, language)}
                   </div>
                 )}
               </div>
@@ -677,14 +702,14 @@ function BuilderPanel({
           <div className="action-buttons">
             {selectedGoods.size > 0 && (
               <button className="primary" onClick={() => setGoodsDecided(true)}>
-                {selectedGoods.size}個使用する
+                {interpolate(t('action.blackmarket.use'), { count: String(selectedGoods.size) })}
               </button>
             )}
             <button onClick={() => { setSelectedGoods(new Set()); setGoodsDecided(true); }}>
-              商品を使わない
+              {t('action.blackmarket.skip')}
             </button>
             <button onClick={() => { setSelectedGoods(new Set()); setCraneTarget(undefined); setCraneDecided(false); }}>
-              戻る
+              {t('btn.back')}
             </button>
           </div>
         </div>
@@ -692,7 +717,7 @@ function BuilderPanel({
     }
   }
 
-  // Step 4: 支払いカード選択
+  // Step 4: Payment
   const goodsCount = selectedGoods.size;
   const cardCost = Math.max(0, baseCost - goodsCount);
   const payableCards = player.hand.filter((c) => c.instanceId !== selectedBuild);
@@ -704,19 +729,23 @@ function BuilderPanel({
     setSelectedPayment(next);
   };
 
-  // コスト0なら即建設
+  const blackMarketGoods: GoodType[] = [];
+  selectedGoods.forEach((idx) => {
+    const good = player.buildings[idx].good;
+    if (good) blackMarketGoods.push(good);
+  });
+
+  // Cost 0 - build immediately
   if (cardCost === 0) {
-    const blackMarketGoods: GoodType[] = [];
-    selectedGoods.forEach((idx) => {
-      const good = player.buildings[idx].good;
-      if (good) blackMarketGoods.push(good);
-    });
+    const craneTargetName = craneTarget !== undefined
+      ? getCardDisplayName(getCardDef(player.buildings[craneTarget].card).id, language, getCardDef(player.buildings[craneTarget].card).name)
+      : '';
 
     return (
       <div className="action-panel">
-        <h3>建築士 - {buildDef.name} を建設 (コスト: 0)</h3>
-        {craneTarget !== undefined && <p>建て替え: {getCardDef(player.buildings[craneTarget].card).name}</p>}
-        {goodsCount > 0 && <p>闇市場: 商品{goodsCount}個使用</p>}
+        <h3>{interpolate(t('action.builder.buildCostZero'), { name: buildName })}</h3>
+        {craneTarget !== undefined && <p>{interpolate(t('action.builder.replaceTarget'), { name: craneTargetName })}</p>}
+        {goodsCount > 0 && <p>{interpolate(t('action.blackmarket.used'), { count: String(goodsCount) })}</p>}
         <div className="action-buttons">
           <button
             className="primary"
@@ -731,28 +760,30 @@ function BuilderPanel({
               resetAll();
             }}
           >
-            建設
+            {t('action.builder.build')}
           </button>
-          <button onClick={resetAll}>戻る</button>
+          <button onClick={resetAll}>{t('btn.back')}</button>
           <button className="skip" onClick={() => { resetAll(); dispatch({ type: 'SKIP_BUILD' }); }}>
-            パス
+            {t('btn.pass')}
           </button>
         </div>
       </div>
     );
   }
 
-  const blackMarketGoods: GoodType[] = [];
-  selectedGoods.forEach((idx) => {
-    const good = player.buildings[idx].good;
-    if (good) blackMarketGoods.push(good);
-  });
+  const paymentTitle = goodsCount > 0
+    ? interpolate(t('action.builder.paymentGoods'), { name: buildName, cost: String(cardCost), goods: String(goodsCount) })
+    : interpolate(t('action.builder.payment'), { name: buildName, cost: String(cardCost) });
+
+  const craneTargetName = craneTarget !== undefined
+    ? getCardDisplayName(getCardDef(player.buildings[craneTarget].card).id, language, getCardDef(player.buildings[craneTarget].card).name)
+    : '';
 
   return (
     <div className="action-panel">
-      <h3>建築士 - {buildDef.name} の支払い (コスト: {cardCost}{goodsCount > 0 ? ` [商品${goodsCount}個使用]` : ''})</h3>
-      <p>支払うカードを{cardCost}枚選択してください</p>
-      {craneTarget !== undefined && <p>建て替え: {getCardDef(player.buildings[craneTarget].card).name}</p>}
+      <h3>{paymentTitle}</h3>
+      <p>{interpolate(t('action.builder.selectPayment'), { cost: String(cardCost) })}</p>
+      {craneTarget !== undefined && <p>{interpolate(t('action.builder.replaceTarget'), { name: craneTargetName })}</p>}
       <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', margin: '6px 0' }}>
         {payableCards.map((c) => (
           <CardView
@@ -780,11 +811,11 @@ function BuilderPanel({
             resetAll();
           }}
         >
-          建設 ({selectedPayment.size}/{cardCost})
+          {t('action.builder.build')} ({selectedPayment.size}/{cardCost})
         </button>
-        <button onClick={resetAll}>戻る</button>
+        <button onClick={resetAll}>{t('btn.back')}</button>
         <button className="skip" onClick={() => { resetAll(); dispatch({ type: 'SKIP_BUILD' }); }}>
-          パス
+          {t('btn.pass')}
         </button>
       </div>
     </div>
@@ -799,6 +830,7 @@ function ProducerPanel({
   state: GameState;
   dispatch: React.Dispatch<GameAction>;
 }) {
+  const { t } = useLanguage();
   const player = state.players[0];
   const producible = getProducibleBuildings(state, 0);
   const maxSlots = getMaxProductionCount(state, 0);
@@ -807,23 +839,22 @@ function ProducerPanel({
   if (producible.length === 0) {
     return (
       <div className="action-panel">
-        <h3>監督 - 生産</h3>
-        <p>生産可能な空き建物がありません。</p>
+        <h3>{t('action.producer.title')}</h3>
+        <p>{t('action.producer.empty')}</p>
         <div className="action-buttons">
           <button onClick={() => dispatch({ type: 'PRODUCE', buildingIndices: [] })}>
-            OK
+            {t('btn.ok')}
           </button>
         </div>
       </div>
     );
   }
 
-  // 選択可能数が1で空きスロットも1なら自動選択
   if (maxSlots >= producible.length) {
     return (
       <div className="action-panel">
-        <h3>監督 - 全ての空き生産建物に商品が載ります</h3>
-        {state.roleChooser === 0 && <p>特権: 追加1個生産</p>}
+        <h3>{t('action.producer.allProduce')}</h3>
+        {state.roleChooser === 0 && <p>{t('action.producer.privilege')}</p>}
         <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', margin: '6px 0' }}>
           {producible.map((idx) => {
             const b = player.buildings[idx];
@@ -837,7 +868,7 @@ function ProducerPanel({
             className="primary"
             onClick={() => dispatch({ type: 'PRODUCE', buildingIndices: producible })}
           >
-            生産する
+            {t('action.producer.produce')}
           </button>
         </div>
       </div>
@@ -853,8 +884,8 @@ function ProducerPanel({
 
   return (
     <div className="action-panel">
-      <h3>監督 - 生産する建物を{maxSlots}個選択</h3>
-      {state.roleChooser === 0 && <p>特権: 追加1個生産</p>}
+      <h3>{interpolate(t('action.producer.select'), { count: String(maxSlots) })}</h3>
+      {state.roleChooser === 0 && <p>{t('action.producer.privilege')}</p>}
       <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', margin: '6px 0' }}>
         {producible.map((idx) => {
           const b = player.buildings[idx];
@@ -879,7 +910,7 @@ function ProducerPanel({
             setSelected(new Set());
           }}
         >
-          生産する ({selected.size}/{maxSlots})
+          {t('action.producer.produce')} ({selected.size}/{maxSlots})
         </button>
       </div>
     </div>
@@ -887,27 +918,28 @@ function ProducerPanel({
 }
 
 const GOOD_ICONS: Record<GoodType, string> = {
-  indigo: '🟦',
-  sugar: '⬜',
-  tobacco: '🟨',
-  coffee: '🟫',
-  silver: '⚪',
+  indigo: '🌿',
+  sugar: '🍄',
+  tobacco: '🍯',
+  coffee: '💎',
+  silver: '🌙',
 };
 
 const GOOD_COLORS: Record<GoodType, { bg: string; border: string }> = {
-  indigo: { bg: '#c0d0e8', border: '#2a4a8a' },
+  indigo: { bg: '#c0e0c8', border: '#2a6a3a' },
   sugar: { bg: '#f0ead8', border: '#b8a888' },
   tobacco: { bg: '#e8d4a0', border: '#a88030' },
-  coffee: { bg: '#d8bfa0', border: '#6a3a1a' },
-  silver: { bg: '#ccd2d8', border: '#707880' },
+  coffee: { bg: '#d0b8e0', border: '#6a3a90' },
+  silver: { bg: '#c8d0e8', border: '#4050a0' },
 };
 
 const GOOD_ORDER: GoodType[] = ['indigo', 'sugar', 'tobacco', 'coffee', 'silver'];
 
 function TradingTileDisplay({ tile }: { tile: TradingTile }) {
+  const { language, t } = useLanguage();
   return (
     <div className="trading-tile">
-      <div className="trading-tile-label">商館タイル</div>
+      <div className="trading-tile-label">{t('action.trader.tradingTile')}</div>
       <div className="trading-tile-prices">
         {GOOD_ORDER.map((good) => (
           <div
@@ -919,7 +951,7 @@ function TradingTileDisplay({ tile }: { tile: TradingTile }) {
             }}
           >
             <span className="trading-tile-icon">{GOOD_ICONS[good]}</span>
-            <span className="trading-tile-name">{GOOD_NAMES[good]}</span>
+            <span className="trading-tile-name">{getGoodName(good, language)}</span>
             <span className="trading-tile-price">{tile[good]}</span>
           </div>
         ))}
@@ -936,6 +968,7 @@ function TraderPanel({
   state: GameState;
   dispatch: React.Dispatch<GameAction>;
 }) {
+  const { t } = useLanguage();
   const player = state.players[0];
   const goods = getSellableGoods(state, 0);
   const maxSell = getMaxSellCount(state, 0);
@@ -944,10 +977,10 @@ function TraderPanel({
   if (goods.length === 0) {
     return (
       <div className="action-panel">
-        <h3>商人 - 売却</h3>
-        <p>売却可能な商品がありません。</p>
+        <h3>{t('action.trader.title')}</h3>
+        <p>{t('action.trader.empty')}</p>
         <div className="action-buttons">
-          <button onClick={() => dispatch({ type: 'SKIP_TRADE' })}>OK</button>
+          <button onClick={() => dispatch({ type: 'SKIP_TRADE' })}>{t('btn.ok')}</button>
         </div>
       </div>
     );
@@ -962,11 +995,11 @@ function TraderPanel({
 
   return (
     <div className="action-panel">
-      <h3>商人 - 売却する商品を選択 (最大{maxSell}個)</h3>
+      <h3>{interpolate(t('action.trader.select'), { count: String(maxSell) })}</h3>
       {state.currentTradingTile && (
         <TradingTileDisplay tile={state.currentTradingTile} />
       )}
-      {state.roleChooser === 0 && <p>特権: 売却額+1カード</p>}
+      {state.roleChooser === 0 && <p>{t('action.trader.privilege')}</p>}
       <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', margin: '6px 0' }}>
         {goods.map((g) => {
           const b = player.buildings[g.buildingIndex];
@@ -992,13 +1025,13 @@ function TraderPanel({
             setSelected(new Set());
           }}
         >
-          売却 ({selected.size}個)
+          {t('action.trader.sell')} ({selected.size})
         </button>
         <button className="skip" onClick={() => {
           setSelected(new Set());
           dispatch({ type: 'SKIP_TRADE' });
         }}>
-          パス
+          {t('btn.pass')}
         </button>
       </div>
     </div>
@@ -1013,6 +1046,7 @@ function CouncillorPanel({
   state: GameState;
   dispatch: React.Dispatch<GameAction>;
 }) {
+  const { t } = useLanguage();
   const rawKeepCount = getCouncillorKeepCount(state, 0);
   const keepCount = Math.min(rawKeepCount, state.drawnCards.length);
   const [selected, setSelected] = React.useState<Set<number>>(new Set());
@@ -1027,11 +1061,11 @@ function CouncillorPanel({
   if (state.drawnCards.length === 0) {
     return (
       <div className="action-panel">
-        <h3>参事会員</h3>
-        <p>山札がありません。</p>
+        <h3>{t('action.councillor.title')}</h3>
+        <p>{t('action.councillor.empty')}</p>
         <div className="action-buttons">
           <button onClick={() => dispatch({ type: 'COUNCILLOR_KEEP', cardInstanceIds: [] })}>
-            OK
+            {t('btn.ok')}
           </button>
         </div>
       </div>
@@ -1041,9 +1075,12 @@ function CouncillorPanel({
   return (
     <div className="action-panel">
       <h3>
-        参事会員 - {state.drawnCards.length}枚から{keepCount}枚選択
+        {interpolate(t('action.councillor.select'), {
+          total: String(state.drawnCards.length),
+          keep: String(keepCount),
+        })}
       </h3>
-      {state.roleChooser === 0 && <p>特権: 5枚引いて選択</p>}
+      {state.roleChooser === 0 && <p>{t('action.councillor.privilege')}</p>}
       <div className="councillor-cards">
         {state.drawnCards.map((c) => (
           <CardView
@@ -1068,7 +1105,7 @@ function CouncillorPanel({
             setSelected(new Set());
           }}
         >
-          選択 ({selected.size}/{keepCount})
+          {t('action.councillor.keep')} ({selected.size}/{keepCount})
         </button>
       </div>
     </div>
@@ -1083,6 +1120,7 @@ function ChapelPanel({
   state: GameState;
   dispatch: React.Dispatch<GameAction>;
 }) {
+  const { t } = useLanguage();
   const player = state.players[0];
   const chapelBuilding = player.buildings.find(
     (b) => b.card.defId === 'chapel'
@@ -1091,8 +1129,8 @@ function ChapelPanel({
 
   return (
     <div className="action-panel">
-      <h3>礼拝堂 - 手札1枚を格納 (現在{storedCount}枚格納済み)</h3>
-      <p>格納した1枚につきゲーム終了時+1VP。格納するカードを選択してください。</p>
+      <h3>{interpolate(t('action.chapel.title'), { count: String(storedCount) })}</h3>
+      <p>{t('action.chapel.desc')}</p>
       <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', margin: '6px 0' }}>
         {player.hand.map((c) => (
           <CardView
@@ -1111,7 +1149,7 @@ function ChapelPanel({
           className="skip"
           onClick={() => dispatch({ type: 'SKIP_CHAPEL' })}
         >
-          格納しない
+          {t('action.chapel.skip')}
         </button>
       </div>
     </div>
@@ -1126,6 +1164,7 @@ function HandLimitPanel({
   state: GameState;
   dispatch: React.Dispatch<GameAction>;
 }) {
+  const { t } = useLanguage();
   const player = state.players[state.executingPlayerIndex];
   const discardCount = getDiscardExcessCount(state, state.executingPlayerIndex);
   const [selected, setSelected] = React.useState<Set<number>>(new Set());
@@ -1141,8 +1180,8 @@ function HandLimitPanel({
 
   return (
     <div className="action-panel">
-      <h3>手札上限超過 - {discardCount}枚捨ててください</h3>
-      <p>手札が上限({limit}枚)を超えています。捨てるカードを選択してください。</p>
+      <h3>{interpolate(t('action.handlimit.title'), { count: String(discardCount) })}</h3>
+      <p>{interpolate(t('action.handlimit.desc'), { limit: String(limit) })}</p>
       <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', margin: '6px 0' }}>
         {player.hand.map((c) => (
           <CardView
@@ -1167,7 +1206,7 @@ function HandLimitPanel({
             setSelected(new Set());
           }}
         >
-          捨てる ({selected.size}/{discardCount})
+          {t('action.handlimit.discard')} ({selected.size}/{discardCount})
         </button>
       </div>
     </div>
@@ -1182,6 +1221,7 @@ function ArchivePanel({
   state: GameState;
   dispatch: React.Dispatch<GameAction>;
 }) {
+  const { t } = useLanguage();
   const player = state.players[state.executingPlayerIndex];
   const [selected, setSelected] = React.useState<Set<number>>(new Set());
 
@@ -1194,8 +1234,8 @@ function ArchivePanel({
 
   return (
     <div className="action-panel">
-      <h3>公文書館 - 手札から捨てるカードを選択</h3>
-      <p>任意の枚数を捨てられます。捨てない場合はスキップしてください。</p>
+      <h3>{t('action.archive.title')}</h3>
+      <p>{t('action.archive.desc')}</p>
       <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', margin: '6px 0' }}>
         {player.hand.map((c) => (
           <CardView
@@ -1220,7 +1260,7 @@ function ArchivePanel({
               setSelected(new Set());
             }}
           >
-            {selected.size}枚捨てる
+            {interpolate(t('action.archive.discard'), { count: String(selected.size) })}
           </button>
         )}
         <button
@@ -1230,7 +1270,7 @@ function ArchivePanel({
             setSelected(new Set());
           }}
         >
-          捨てない
+          {t('action.archive.skip')}
         </button>
       </div>
     </div>

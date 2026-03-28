@@ -1,6 +1,8 @@
 import { useRef, useState, useEffect } from 'react';
 import { Card, GoodType } from '../game/types';
 import { getCardDef } from '../game/utils';
+import { useLanguage } from '../i18n';
+import { getCardDisplayName, getCardDisplayAbility } from '../i18n';
 
 interface CardViewProps {
   card: Card;
@@ -24,12 +26,16 @@ export function CardView({
   onClick,
 }: CardViewProps) {
   const def = getCardDef(card);
+  const { language } = useLanguage();
+
+  const displayName = getCardDisplayName(def.id, language, def.name);
+  const displayAbility = getCardDisplayAbility(def.id, language, def.abilityText);
+
   const typeClass =
     def.type === 'production' && def.goodType
       ? `type-${def.goodType}`
       : 'type-violet';
 
-  // 商品トークン消失アニメーション
   const prevGoodRef = useRef<GoodType | null | undefined>(good);
   const [removingGood, setRemovingGood] = useState<GoodType | null>(null);
 
@@ -54,14 +60,17 @@ export function CardView({
     .filter(Boolean)
     .join(' ');
 
+  const costLabel = language === 'ja' ? 'コスト' : 'Cost';
+  const fameLabel = language === 'ja' ? '名声' : 'Fame';
+
   return (
-    <div className={classes} onClick={clickable ? onClick : undefined} title={`${def.name}\n${def.abilityText}\nコスト: ${def.cost} VP: ${def.vp}`}>
+    <div className={classes} onClick={clickable ? onClick : undefined} title={`${displayName}\n${displayAbility}\n${costLabel}: ${def.cost} ${fameLabel}: ${def.vp}`}>
       <div className="card-header">
         <span className="card-cost">{def.cost}</span>
         <span className="card-vp">{def.vp}</span>
       </div>
-      <div className="card-name">{def.name}</div>
-      {size !== 'xs' && <div className="card-ability">{def.abilityText}</div>}
+      <div className="card-name">{displayName}</div>
+      {size !== 'xs' && <div className="card-ability">{displayAbility}</div>}
       {good && <div className={`goods-token good-${good}`} />}
       {!good && removingGood && (
         <div className={`goods-token good-${removingGood} removing`} />

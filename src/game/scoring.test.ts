@@ -45,6 +45,7 @@ function makeState(players: PlayerState[]): GameState {
     chapelUsedThisRound: [false, false, false, false],
     gameEndTriggered: true,
     currentTradingTile: null,
+    language: 'ja',
     log: [],
     finalScores: null,
   };

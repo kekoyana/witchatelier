@@ -1,4 +1,4 @@
-import { GameState } from './types';
+import { GameState, Language } from './types';
 import { GameAction } from './actions';
 import { hasBuilding } from './utils';
 import {
@@ -22,7 +22,6 @@ import {
 function completeAndAdvance(state: GameState, playerId: number): GameState {
   const player = state.players[playerId];
 
-  // 人間プレイヤーが手札上限超過 → 選択UIへ
   if (player.isHuman && needsDiscardExcess(state, playerId)) {
     return { ...state, subPhase: 'discard_excess' };
   }
@@ -35,12 +34,12 @@ function completeAndAdvance(state: GameState, playerId: number): GameState {
 export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case 'START_GAME': {
-      const s = createInitialGameState();
+      const s = createInitialGameState(action.language);
       return startGame(s);
     }
 
     case 'RESTART_GAME': {
-      const s = createInitialGameState();
+      const s = createInitialGameState(state.language);
       return startGame(s);
     }
 
@@ -62,12 +61,13 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'SKIP_BUILD': {
       let s = markPlayerCompleted(state, state.executingPlayerIndex);
+      const name = s.players[state.executingPlayerIndex].name;
+      const msg = state.language === 'ja'
+        ? `${name}は錬成をパス`
+        : `${name} passed on building`;
       s = {
         ...s,
-        log: [
-          ...s.log,
-          `${s.players[state.executingPlayerIndex].name}は建築をパス`,
-        ],
+        log: [...s.log, msg],
       };
       s = advanceToNextPlayer(s);
       return s;
@@ -99,12 +99,13 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'SKIP_TRADE': {
       let s = markPlayerCompleted(state, state.executingPlayerIndex);
+      const name = s.players[state.executingPlayerIndex].name;
+      const msg = state.language === 'ja'
+        ? `${name}は売却をパス`
+        : `${name} passed on selling`;
       s = {
         ...s,
-        log: [
-          ...s.log,
-          `${s.players[state.executingPlayerIndex].name}は売却をパス`,
-        ],
+        log: [...s.log, msg],
       };
       s = advanceToNextPlayer(s);
       return s;
@@ -118,7 +119,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       );
       const player = s.players[state.executingPlayerIndex];
 
-      // 人間プレイヤーが公文書館を持っている → 公文書館UIへ
       if (player.isHuman && hasBuilding(player.buildings, 'archive')) {
         return { ...s, subPhase: 'archive_select' };
       }
@@ -168,7 +168,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'ADVANCE': {
-      // AI自動進行用 - 現在のフェーズに応じて処理
       return state;
     }
 
@@ -177,9 +176,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
   }
 }
 
-export function createInitialState(): GameState {
+export function createInitialState(language: Language = 'ja'): GameState {
   return {
-    ...createInitialGameState(),
+    ...createInitialGameState(language),
     phase: 'title',
   };
 }

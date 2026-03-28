@@ -5,9 +5,8 @@ import {
   Card,
   RoleType,
   GoodType,
+  Language,
   TRADING_TILES,
-  GOOD_NAMES,
-  ROLE_NAMES,
   MAX_BUILDINGS,
 } from './types';
 import { CARD_DEF_MAP } from './cardData';
@@ -20,29 +19,59 @@ import {
   resetInstanceIdCounter,
 } from './utils';
 import { calculateFinalScores } from './scoring';
+import { getCardDisplayName, getGoodName, getRoleName } from '../i18n';
+
+// ==================== i18n helpers ====================
+
+function lang(state: GameState): Language {
+  return state.language;
+}
+
+function cardName(state: GameState, defId: string): string {
+  const def = CARD_DEF_MAP[defId];
+  return getCardDisplayName(defId, lang(state), def?.name ?? defId);
+}
+
+function goodName(state: GameState, good: GoodType): string {
+  return getGoodName(good, lang(state));
+}
+
+function roleName(state: GameState, role: RoleType): string {
+  return getRoleName(role, lang(state));
+}
+
+function txt(state: GameState, ja: string, en: string): string {
+  return lang(state) === 'ja' ? ja : en;
+}
 
 // ==================== 初期化 ====================
 
-export function createInitialGameState(): GameState {
+export function createInitialGameState(language: Language = 'ja'): GameState {
   resetInstanceIdCounter();
   let deck = createDeck();
   const discard: Card[] = [];
   const players: PlayerState[] = [];
 
-  const cpuNamePool = [
-    'ポンセ', 'コロン', 'カサス', 'ディアス', 'ルナ', 'ロペス',
-    'カノ', 'レオン', 'トレス', 'ソト', 'リオス', 'クルス',
-    'モラ', 'ベガ', 'オルテ', 'シルバ', 'メサ', 'パス',
+  const cpuNamePoolJa = [
+    'ルナ', 'セレネ', 'モルガナ', 'メディア', 'キルケ', 'ヘカテ',
+    'リリス', 'ノクス', 'アリア', 'フレイヤ', 'イシス', 'カリス',
+    'ベラ', 'ステラ', 'ノーラ', 'マーラ', 'ウィロウ', 'セイジ',
   ];
-  const shuffled = [...cpuNamePool].sort(() => Math.random() - 0.5);
-  const names = ['あなた', shuffled[0], shuffled[1], shuffled[2]];
+  const cpuNamePoolEn = [
+    'Luna', 'Selene', 'Morgana', 'Medea', 'Circe', 'Hecate',
+    'Lilith', 'Nox', 'Aria', 'Freya', 'Isis', 'Charis',
+    'Bella', 'Stella', 'Nora', 'Mara', 'Willow', 'Sage',
+  ];
+
+  const pool = language === 'ja' ? cpuNamePoolJa : cpuNamePoolEn;
+  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+  const playerName = language === 'ja' ? 'あなた' : 'You';
+  const names = [playerName, shuffled[0], shuffled[1], shuffled[2]];
 
   for (let i = 0; i < 4; i++) {
-    // 初期建物: インディゴ染料工場
     const indigoIndex = deck.findIndex((c) => c.defId === 'indigo_plant');
     const indigoCard = deck.splice(indigoIndex, 1)[0];
 
-    // 手札4枚
     const result = drawCards(deck, discard, 4);
     deck = result.deck;
 
@@ -74,6 +103,7 @@ export function createInitialGameState(): GameState {
     chapelUsedThisRound: [false, false, false, false],
     gameEndTriggered: false,
     currentTradingTile: null,
+    language,
     log: [],
     finalScores: null,
   };
@@ -113,7 +143,6 @@ function enforceHandLimit(state: GameState, playerId: number): GameState {
   const limit = getHandLimit(player.buildings);
   if (player.hand.length <= limit) return state;
 
-  // AI: 最もコストの低いカード(価値が低い)を捨てる
   if (!player.isHuman) {
     const sorted = [...player.hand].sort(
       (a, b) => getCardDef(a).cost - getCardDef(b).cost
@@ -124,7 +153,6 @@ function enforceHandLimit(state: GameState, playerId: number): GameState {
     s = discardCards(s, discarded);
     return s;
   }
-  // Human: UIで選択させるのでここでは何もしない
   return state;
 }
 
@@ -150,7 +178,11 @@ export function executeDiscardExcess(
   const newHand = player.hand.filter((c) => !cardInstanceIds.includes(c.instanceId));
   let s = updatePlayer(state, playerId, { hand: newHand });
   s = discardCards(s, discarded);
-  s = addLog(s, `${player.name}が${discarded.length}枚捨てた(手札上限)`);
+  const msg = txt(s,
+    `${player.name}が${discarded.length}枚捨てた(手札上限)`,
+    `${player.name} discarded ${discarded.length} (hand limit)`
+  );
+  s = addLog(s, msg);
   return s;
 }
 
@@ -165,7 +197,11 @@ export function executeArchiveDiscard(
   let s = updatePlayer(state, playerId, { hand: newHand });
   s = discardCards(s, discarded);
   if (discarded.length > 0) {
-    s = addLog(s, `${player.name}が公文書館で${discarded.length}枚捨てた`);
+    const msg = txt(s,
+      `${player.name}が魔導書庫で${discarded.length}枚捨てた`,
+      `${player.name} discarded ${discarded.length} via Grimoire Vault`
+    );
+    s = addLog(s, msg);
   }
   return s;
 }
@@ -214,11 +250,13 @@ export function selectRole(state: GameState, role: RoleType): GameState {
     playersCompletedAction: [false, false, false, false],
   };
 
-  const roleName = ROLE_NAMES[role];
+  const rName = roleName(s, role);
   const playerName = getPlayer(s, playerId).name;
-  s = addLog(s, `${playerName}が${roleName}を選択`);
+  s = addLog(s, txt(s,
+    `${playerName}が${rName}を選択`,
+    `${playerName} chose ${rName}`
+  ));
 
-  // フェーズに遷移
   switch (role) {
     case 'builder':
       s = { ...s, phase: 'builder_phase', subPhase: 'select_building' };
@@ -229,16 +267,18 @@ export function selectRole(state: GameState, role: RoleType): GameState {
     case 'trader': {
       const tile = TRADING_TILES[Math.floor(Math.random() * TRADING_TILES.length)];
       s = { ...s, phase: 'trader_phase', subPhase: 'select_good', currentTradingTile: tile };
-      s = addLog(s, `商館タイル: インディゴ${tile.indigo}/砂糖${tile.sugar}/タバコ${tile.tobacco}/コーヒー${tile.coffee}/銀${tile.silver}`);
+      const gn = (g: GoodType) => goodName(s, g);
+      s = addLog(s, txt(s,
+        `取引タイル: ${gn('indigo')}${tile.indigo}/${gn('sugar')}${tile.sugar}/${gn('tobacco')}${tile.tobacco}/${gn('coffee')}${tile.coffee}/${gn('silver')}${tile.silver}`,
+        `Trade tile: ${gn('indigo')} ${tile.indigo} / ${gn('sugar')} ${tile.sugar} / ${gn('tobacco')} ${tile.tobacco} / ${gn('coffee')} ${tile.coffee} / ${gn('silver')} ${tile.silver}`
+      ));
       break;
     }
     case 'councillor':
       s = { ...s, phase: 'councillor_phase', subPhase: 'select_cards' };
-      // 参事会員フェーズ開始時にカードをドロー
       s = prepareCouncillorDraw(s, s.executingPlayerIndex);
       break;
     case 'prospector':
-      // 金鉱掘り: 選択者のみ1枚引いて、即座に次の役職選択へ
       s = executeProspector(s, playerId);
       s = {
         ...s,
@@ -265,18 +305,15 @@ export function getBuildCost(
 
   let cost = def.cost;
 
-  // クレーンで建て替え: 差額のみ
   if (craneTargetDefId) {
     const targetDef = CARD_DEF_MAP[craneTargetDefId];
     cost = Math.max(0, cost - targetDef.cost);
   }
 
-  // 建築士特権: -1
   if (isChooser) {
     cost -= 1 * mult;
   }
 
-  // 鍛冶屋: -1
   if (hasBuilding(player.buildings, 'smithy')) {
     cost -= 1 * mult;
   }
@@ -296,12 +333,10 @@ export function canBuild(
 
   const def = getCardDef(card);
 
-  // 同じ建物は建てられない(生産施設とクレーン建て替えを除く)
   if (craneTargetIndex === undefined && def.type !== 'production') {
     if (hasBuilding(player.buildings, def.id)) return false;
   }
 
-  // 12建物上限
   if (
     player.buildings.length >= MAX_BUILDINGS &&
     craneTargetIndex === undefined
@@ -314,7 +349,6 @@ export function canBuild(
       : undefined;
   const cost = getBuildCost(state, playerId, def.id, craneTargetDefId);
 
-  // 闇市場: 商品を支払いに使える(最大2個)
   let payableFromGoods = 0;
   if (hasBuilding(player.buildings, 'black_market')) {
     payableFromGoods = Math.min(
@@ -323,7 +357,6 @@ export function canBuild(
     );
   }
 
-  // 手札から支払える枚数(建設するカード自体は除く)
   const handPayable = player.hand.length - 1;
   return handPayable + payableFromGoods >= cost;
 }
@@ -341,22 +374,18 @@ export function executeBuild(
   const card = player.hand.find((c) => c.instanceId === cardInstanceId)!;
   const def = getCardDef(card);
 
-  // 手札から建設カードと支払いカードを除去
   const removeIds = new Set([cardInstanceId, ...paymentCardIds]);
   const newHand = player.hand.filter((c) => !removeIds.has(c.instanceId));
 
-  // 支払いカードを捨て札に
   const paymentCards = player.hand.filter(
     (c) => paymentCardIds.includes(c.instanceId)
   );
   s = discardCards(s, paymentCards);
 
-  // 新しい建物
   const newBuilding: Building = { card, good: null, chapelCards: 0 };
 
   let newBuildings = [...player.buildings];
 
-  // クレーンで建て替え
   if (craneTargetIndex !== undefined) {
     const removed = newBuildings[craneTargetIndex];
     s = discardCards(s, [removed.card]);
@@ -365,7 +394,6 @@ export function executeBuild(
     newBuildings = [...newBuildings, newBuilding];
   }
 
-  // 闇市場: 商品を除去
   if (blackMarketGoods && blackMarketGoods.length > 0) {
     for (const goodType of blackMarketGoods) {
       const idx = newBuildings.findIndex((b) => b.good === goodType);
@@ -376,36 +404,51 @@ export function executeBuild(
   }
 
   s = updatePlayer(s, playerId, { hand: newHand, buildings: newBuildings });
-  s = addLog(s, `${player.name}が${def.name}を建設`);
+  const cName = cardName(s, def.id);
+  s = addLog(s, txt(s,
+    `${player.name}が${cName}を錬成`,
+    `${player.name} built ${cName}`
+  ));
 
-  // 大工小屋: 建設後1枚ドロー
   if (hasBuilding(newBuildings, 'carpenter')) {
     const drawCount = 1 * libraryMultiplier(s, playerId);
     s = drawCardsForPlayer(s, playerId, drawCount);
-    s = addLog(s, `${player.name}: 大工小屋で${drawCount}枚引いた`);
+    const bName = cardName(s, 'carpenter');
+    s = addLog(s, txt(s,
+      `${player.name}: ${bName}で${drawCount}枚引いた`,
+      `${player.name}: ${bName} drew ${drawCount}`
+    ));
   }
 
-  // 英雄: コスト6を建てたら5枚ドロー
   if (hasBuilding(newBuildings, 'hero') && def.cost >= 6) {
     const drawCount = 5;
     s = drawCardsForPlayer(s, playerId, drawCount);
-    s = addLog(s, `${player.name}: 英雄で${drawCount}枚引いた`);
+    const bName = cardName(s, 'hero');
+    s = addLog(s, txt(s,
+      `${player.name}: ${bName}で${drawCount}枚引いた`,
+      `${player.name}: ${bName} drew ${drawCount}`
+    ));
   }
 
-  // 救貧院: 建設後手札0-1枚なら1枚ドロー
   if (hasBuilding(newBuildings, 'poor_house')) {
     const currentHand = getPlayer(s, playerId).hand;
     if (currentHand.length <= 1) {
       const drawCount = 1 * libraryMultiplier(s, playerId);
       s = drawCardsForPlayer(s, playerId, drawCount);
-      s = addLog(s, `${player.name}: 救貧院で${drawCount}枚引いた`);
+      const bName = cardName(s, 'poor_house');
+      s = addLog(s, txt(s,
+        `${player.name}: ${bName}で${drawCount}枚引いた`,
+        `${player.name}: ${bName} drew ${drawCount}`
+      ));
     }
   }
 
-  // 12建物でゲーム終了フラグ
   if (getPlayer(s, playerId).buildings.length >= MAX_BUILDINGS) {
     s = { ...s, gameEndTriggered: true };
-    s = addLog(s, `${player.name}が${MAX_BUILDINGS}個の建物を建設！`);
+    s = addLog(s, txt(s,
+      `${player.name}が${MAX_BUILDINGS}個の設備を錬成！`,
+      `${player.name} built ${MAX_BUILDINGS} facilities!`
+    ));
   }
 
   s = enforceHandLimit(s, playerId);
@@ -439,11 +482,8 @@ export function getMaxProductionSlots(
   const mult = libraryMultiplier(state, playerId);
 
   const emptySlots = getProducibleBuildings(state, playerId).length;
-  // 基本: 空き生産建物1つに生産
   let allowed = 1;
-  // 監督特権: +1
   if (isChooser) allowed += 1 * mult;
-  // 水道橋: +1
   if (hasBuilding(player.buildings, 'aqueduct')) allowed += 1 * mult;
 
   return Math.min(allowed, emptySlots);
@@ -458,10 +498,8 @@ export function executeProduction(
   const player = getPlayer(s, playerId);
   const mult = libraryMultiplier(s, playerId);
 
-  // 生産可能数 = 基本1 + 特権 + 水道橋 (空きスロット上限)
   const allowed = getMaxProductionSlots(s, playerId);
 
-  // 指定された建物に商品を載せる
   const newBuildings = [...player.buildings];
   let produced = 0;
   for (const idx of buildingIndices) {
@@ -477,14 +515,20 @@ export function executeProduction(
   s = updatePlayer(s, playerId, { buildings: newBuildings });
 
   if (produced > 0) {
-    s = addLog(s, `${player.name}が${produced}個生産`);
+    s = addLog(s, txt(s,
+      `${player.name}が${produced}個採集`,
+      `${player.name} gathered ${produced}`
+    ));
   }
 
-  // 井戸: 2個以上生産したら1枚ドロー
   if (hasBuilding(newBuildings, 'well') && produced >= 2) {
     const drawCount = 1 * mult;
     s = drawCardsForPlayer(s, playerId, drawCount);
-    s = addLog(s, `${player.name}: 井戸で${drawCount}枚引いた`);
+    const bName = cardName(s, 'well');
+    s = addLog(s, txt(s,
+      `${player.name}: ${bName}で${drawCount}枚引いた`,
+      `${player.name}: ${bName} drew ${drawCount}`
+    ));
   }
 
   return s;
@@ -525,7 +569,6 @@ export function getMaxSellCount(
   if (hasBuilding(player.buildings, 'trading_post')) {
     count += 1 * mult;
   }
-  // 商人特権はない (特権は+1カード)
   return count;
 }
 
@@ -541,32 +584,28 @@ export function executeTrade(
 
   const newBuildings = [...player.buildings];
   let totalCards = 0;
-  let soldCount = 0;
 
   for (const idx of buildingIndices) {
     const b = newBuildings[idx];
     if (!b.good) continue;
 
     let price = state.currentTradingTile![b.good];
-    // 商人特権: +1カード
     if (isChooser) price += 1 * mult;
-    // マーケットホール: +1カード per sale
     if (hasBuilding(newBuildings, 'market_hall')) {
       price += 1 * mult;
     }
-    // 露店: +1カード
     if (hasBuilding(newBuildings, 'market_stand')) {
       price += 1 * mult;
     }
 
     totalCards += price;
+    const gName = goodName(s, b.good);
     newBuildings[idx] = { ...b, good: null };
-    soldCount++;
 
-    s = addLog(
-      s,
-      `${player.name}が${GOOD_NAMES[b.good]}を売却(${price}枚)`
-    );
+    s = addLog(s, txt(s,
+      `${player.name}が${gName}を売却(${price}枚)`,
+      `${player.name} sold ${gName} (${price} cards)`
+    ));
   }
 
   s = updatePlayer(s, playerId, { buildings: newBuildings });
@@ -587,7 +626,6 @@ export function getCouncillorDrawCount(
 ): number {
   const isChooser = state.roleChooser === playerId;
   const mult = libraryMultiplier(state, playerId);
-  // 基本2枚、特権+3枚(図書館で特権2倍 → +6枚 = 合計8枚)
   return isChooser ? 2 + 3 * mult : 2;
 }
 
@@ -637,14 +675,14 @@ export function executeCouncillor(
   });
   s = discardCards(s, discarded);
   s = { ...s, drawnCards: [] };
-  s = addLog(s, `${player.name}が${kept.length}枚選択(${totalDrawn}枚から)`);
+  s = addLog(s, txt(s,
+    `${player.name}が${kept.length}枚選択(${totalDrawn}枚から)`,
+    `${player.name} kept ${kept.length} (from ${totalDrawn})`
+  ));
 
-  // 公文書館: 手札を任意に捨てられる
-  // AIのみここで処理。人間は別途UIで処理
   if (!getPlayer(s, playerId).isHuman && hasBuilding(getPlayer(s, playerId).buildings, 'archive')) {
     const archivePlayer = getPlayer(s, playerId);
     const limit = getHandLimit(archivePlayer.buildings);
-    // AIは手札上限を超えている分と、重複建物カードを捨てる
     const scored = archivePlayer.hand.map((c) => {
       const def = getCardDef(c);
       let score = def.vp * 5 + def.cost;
@@ -660,7 +698,11 @@ export function executeCouncillor(
         hand: archivePlayer.hand.filter((c) => keepIds.has(c.instanceId)),
       });
       s = discardCards(s, toDiscard);
-      s = addLog(s, `${archivePlayer.name}が公文書館で${toDiscard.length}枚捨てた`);
+      const bName = cardName(s, 'archive');
+      s = addLog(s, txt(s,
+        `${archivePlayer.name}が${bName}で${toDiscard.length}枚捨てた`,
+        `${archivePlayer.name} discarded ${toDiscard.length} via ${bName}`
+      ));
     }
   }
 
@@ -679,10 +721,13 @@ export function executeProspector(
     const drawCount = 1 * libraryMultiplier(s, playerId);
     s = drawCardsForPlayer(s, playerId, drawCount);
     const player = getPlayer(s, playerId);
-    s = addLog(s, `${player.name}が${drawCount}枚引いた(金鉱掘り)`);
+    const rName = roleName(s, 'prospector');
+    s = addLog(s, txt(s,
+      `${player.name}が${drawCount}枚引いた(${rName})`,
+      `${player.name} drew ${drawCount} (${rName})`
+    ));
   }
 
-  // 金鉱: 金鉱掘りを選んだプレイヤーのみ、山札4枚公開、全て異なるコストなら1枚獲得
   if (state.roleChooser === playerId) {
     const player2 = getPlayer(s, playerId);
     if (hasBuilding(player2.buildings, 'goldmine')) {
@@ -690,6 +735,7 @@ export function executeProspector(
       const result = drawCards(s.deck, s.discard, 4);
       s = { ...s, deck: result.deck, discard: result.discard };
       const costs = new Set(result.drawn.map((c) => getCardDef(c).cost));
+      const bName = cardName(s, 'goldmine');
       if (costs.size === result.drawn.length && result.drawn.length === 4) {
         const sorted = [...result.drawn].sort(
           (a, b) => getCardDef(b).cost - getCardDef(a).cost
@@ -703,11 +749,17 @@ export function executeProspector(
           hand: [...getPlayer(s, playerId).hand, ...kept],
         });
         s = discardCards(s, returned);
-        const keptNames = kept.map((c) => getCardDef(c).name).join('、');
-        s = addLog(s, `${player2.name}: 金鉱で${keptNames}を獲得`);
+        const keptNames = kept.map((c) => cardName(s, getCardDef(c).id)).join('、');
+        s = addLog(s, txt(s,
+          `${player2.name}: ${bName}で${keptNames}を獲得`,
+          `${player2.name}: ${bName} found ${keptNames}`
+        ));
       } else {
         s = discardCards(s, result.drawn);
-        s = addLog(s, `${player2.name}: 金鉱 - コストが重複、獲得なし`);
+        s = addLog(s, txt(s,
+          `${player2.name}: ${bName} - コストが重複、獲得なし`,
+          `${player2.name}: ${bName} - duplicate costs, nothing found`
+        ));
       }
     }
   }
@@ -753,7 +805,11 @@ export function executeChapel(
     buildings: newBuildings,
   });
   s = { ...s, chapelUsedThisRound: chapelUsed };
-  s = addLog(s, `${player.name}が礼拝堂にカードを格納`);
+  const bName = cardName(s, 'chapel');
+  s = addLog(s, txt(s,
+    `${player.name}が${bName}にカードを奉納`,
+    `${player.name} offered a card to ${bName}`
+  ));
   return s;
 }
 
@@ -762,7 +818,11 @@ export function skipChapel(state: GameState, playerId: number): GameState {
   const chapelUsed = [...state.chapelUsedThisRound];
   chapelUsed[playerId] = true;
   let s = { ...state, chapelUsedThisRound: chapelUsed };
-  s = addLog(s, `${player.name}が礼拝堂をスキップ`);
+  const bName = cardName(s, 'chapel');
+  s = addLog(s, txt(s,
+    `${player.name}が${bName}をスキップ`,
+    `${player.name} skipped ${bName}`
+  ));
   return s;
 }
 
@@ -782,18 +842,15 @@ export function advanceToNextPlayer(state: GameState): GameState {
   const current = s.executingPlayerIndex;
   const next = nextPlayer(current);
 
-  // 全員完了チェック
   const completed = [...s.playersCompletedAction];
   completed[current] = true;
 
   if (completed.every((c) => c)) {
-    // この役職の全プレイヤーが完了 → 次の役職選択へ
     return advanceToNextRoleSelection(s);
   }
 
   s = { ...s, executingPlayerIndex: next, playersCompletedAction: completed };
 
-  // 参事会員の場合、次のプレイヤー用のドローを準備
   if (s.currentRole === 'councillor') {
     s = prepareCouncillorDraw(s, next);
   }
@@ -804,13 +861,10 @@ export function advanceToNextPlayer(state: GameState): GameState {
 function advanceToNextRoleSelection(state: GameState): GameState {
   let s = state;
 
-  // 全員が役職を選んだ？
   if (s.rolesSelectedThisRound >= 4) {
-    // ラウンド終了 → 礼拝堂フェーズへ
     return startChapelPhase(s);
   }
 
-  // 次のプレイヤーの役職選択へ
   const nextSelector = nextPlayer(s.currentRoleSelector);
   s = {
     ...s,
@@ -842,7 +896,6 @@ function findNextChapelPlayer(
 function startChapelPhase(state: GameState): GameState {
   const firstPlayer = findNextChapelPlayer(state, state.governorIndex);
   if (firstPlayer === null) {
-    // 誰も礼拝堂を使えない → 新ラウンドへ
     return startNewRound(state);
   }
 
@@ -860,7 +913,6 @@ export function advanceChapelPhase(state: GameState): GameState {
   const nextChapelPlayer = findNextChapelPlayer(state, nextIdx);
 
   if (nextChapelPlayer === null) {
-    // もう誰も使えない → 新ラウンドへ
     return startNewRound(state);
   }
 
@@ -871,7 +923,6 @@ export function advanceChapelPhase(state: GameState): GameState {
 }
 
 function startNewRound(state: GameState): GameState {
-  // ゲーム終了チェック
   if (state.gameEndTriggered) {
     return endGame(state);
   }
@@ -889,7 +940,7 @@ function startNewRound(state: GameState): GameState {
     executingPlayerIndex: newGovernor,
     playersCompletedAction: [false, false, false, false],
     chapelUsedThisRound: [false, false, false, false],
-    log: [...state.log, '--- 新しいラウンド ---'],
+    log: [...state.log, txt(state, '--- 新しいラウンド ---', '--- New Round ---')],
   };
 }
 
@@ -900,7 +951,7 @@ function endGame(state: GameState): GameState {
     phase: 'game_over',
     subPhase: null,
     finalScores,
-    log: [...state.log, '=== ゲーム終了 ==='],
+    log: [...state.log, txt(state, '=== ゲーム終了 ===', '=== Game Over ===')],
   };
 }
 
@@ -911,6 +962,6 @@ export function startGame(state: GameState): GameState {
     ...state,
     phase: 'role_selection',
     subPhase: null,
-    log: ['ゲーム開始！'],
+    log: [txt(state, 'ゲーム開始！', 'Game start!')],
   };
 }

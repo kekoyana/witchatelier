@@ -22,7 +22,7 @@ describe('getCardDef', () => {
     const card: Card = { instanceId: 1, defId: 'indigo_plant' };
     const def = getCardDef(card);
     expect(def.id).toBe('indigo_plant');
-    expect(def.name).toBe('インディゴ染料工場');
+    expect(def.name).toBe('ハーブ園');
     expect(def.cost).toBe(1);
     expect(def.type).toBe('production');
   });
