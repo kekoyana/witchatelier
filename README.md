@@ -1,56 +1,69 @@
-# San Juan (サンファン)
+# Witch's Atelier (魔女の工房)
 
-ボードゲーム「サンファン」(2004年) の Web 実装です。
-1人のプレイヤーが3体のAIと対戦する4人プレイのカードゲームです。
+A card game where you develop your witch's workshop deep in the forest.
+Play as a witch against 3 AI opponents in this strategic card game.
 
-## 技術スタック
+深い森の奥で魔女として工房を発展させるカードゲームです。
+1人のプレイヤーが3体のAIと対戦する4人プレイです。
+
+## Play
+
+[Play on itch.io](#) (coming soon)
+
+## Tech Stack
 
 - React 18 + TypeScript (strict mode)
-- Vite 6
-- Vitest (テスト)
-- CSS (フレームワーク不使用、レスポンシブ対応)
+- Vite 8
+- Vitest (testing)
+- CSS (no framework, responsive)
+- Bilingual support (English / Japanese)
 
-## セットアップ
+## Setup
 
 ```bash
 npm install
 ```
 
-## コマンド
+## Commands
 
 ```bash
-npm run dev        # 開発サーバー起動
-npm run build      # プロダクションビルド (tsc + vite build)
-npm run test       # テスト実行
-npm run test:watch # テスト (ウォッチモード)
+npm run dev        # Dev server
+npm run build      # Production build (tsc + vite build)
+npm run test       # Run tests
+npm run test:watch # Tests (watch mode)
 npm run lint       # ESLint
-npm run preview    # プロダクションビルドのプレビュー
+npm run preview    # Preview production build
 ```
 
-## プロジェクト構成
+## Project Structure
 
 ```
 src/
-├── game/           # ゲームロジック (React非依存の純粋関数)
-│   ├── types.ts    # 型定義・定数
-│   ├── cardData.ts # カードデータベース (22種約110枚)
-│   ├── utils.ts    # デッキ操作・ヘルパー
-│   ├── engine.ts   # コアゲームロジック
-│   ├── scoring.ts  # 終了時得点計算
-│   ├── ai.ts       # AI意思決定
-│   ├── actions.ts  # アクション型定義
-│   └── reducer.ts  # useReducer本体
-├── components/     # 再利用可能UIコンポーネント
-├── App.tsx         # メインUI
-└── App.css         # スタイル (レスポンシブ対応)
+├── game/           # Game logic (pure functions, React-independent)
+│   ├── types.ts    # Type definitions & constants
+│   ├── cardData.ts # Card database (22 types, ~110 cards)
+│   ├── utils.ts    # Deck operations & helpers
+│   ├── engine.ts   # Core game logic
+│   ├── scoring.ts  # End-game scoring
+│   ├── ai.ts       # AI decision-making
+│   ├── actions.ts  # Action type definitions
+│   └── reducer.ts  # useReducer
+├── components/     # Reusable UI components
+├── i18n.tsx        # Internationalization (EN/JA)
+├── App.tsx         # Main UI
+└── App.css         # Styles (responsive)
 ```
 
-詳細なアーキテクチャは [ARCHITECTURE.md](./ARCHITECTURE.md) を参照してください。
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed architecture.
 
-## ゲームルール
+## Game Rules
 
-- 各ラウンドで4人が順番に5つの役職(建築士・監督・商人・参事会員・金鉱掘り)から1つ選択
-- 選んだ役職のアクションを全員が実行(選んだプレイヤーは特権あり)
-- 建物を建設してVP(勝利点)を稼ぐ
-- 誰かが12個目の建物を建設したラウンドの終了時にゲーム終了
-- 最も多くのVPを獲得したプレイヤーが勝利
+- Each round, 4 players take turns choosing one of 5 jobs: Crafting, Gathering, Trading, Divination, Exploration
+- Everyone performs the chosen job's action, but the chooser gets a privilege
+- Build facilities by paying cards from your hand to earn fame (victory points)
+- The game ends when any player builds their 12th facility
+- The player with the most fame wins
+
+## License
+
+All rights reserved.
